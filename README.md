@@ -1,8 +1,6 @@
 # PE Appender
 
-Appends arbitrary data to a PE file without breaking the digital signature of the file. 
-
-Implemented in Python 3.
+Appends arbitrary data to a PE file without breaking the digital signature of the file, implemented in Python 3.
 
 ## Features
 * Supports both 32- and 64-bit PEs (PE32 and PE32+)
@@ -39,8 +37,8 @@ options:
   -h, --help            show this help message and exit
 ```
 
-A bundled exe can also be used, see the dist directory or the releases section. The bundled executable was created using
-PyInstaller version 5.0.1 and Python 3.10.4.
+A bundled exe can also be used, which is available in the dist directory or the releases section. The bundled executable
+was created using PyInstaller version 5.0.1 and Python 3.10.4.
 
 ## What does an appended payload look like?
 
@@ -55,8 +53,8 @@ We calculate that payload's length and insert it as an unsigned, big-endian inte
 b'Henry Reed is a handsome demigod who writes perfect code\x00\x00\x00\x38'
 ```
 
-To get our payload, we read the last four bytes of the file, and use that to determine the length of our payload. Then, 
-our offset from the beginning of the file to the payload would be:
+To get our payload, we read the last four bytes of the file, and use that to determine the length of our payload. Our 
+offset from the beginning of the file to the payload would be:
 
 ```
 offset = len(executable) - len(payload) - 4
