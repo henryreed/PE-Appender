@@ -211,12 +211,6 @@ class ExeAppender:
         # Length of the original binary is needed here, rather than the checksumless, padded length.
         return struct.pack('I', checksum + len(binary))
 
-    @staticmethod
-    def pad_payload(payload: bytes, padding_size: int = 8) -> bytes:
-        """Returns a padded payload (without padding digital signature breaks)"""
-        padding_len = padding_size - (len(payload) % padding_size)
-        return payload + (b'\0' * padding_len)  # Padding must use null bytes
-
     def reader(self, file_location: str):
         variable = ExeAppender.PEVariables()
         constant = ExeAppender.PEConstants()
@@ -271,22 +265,14 @@ class ExeAppender:
         constant = ExeAppender.PEConstants()
         with open(file_location, 'r+b') as file:
             with open(payload_location, 'rb') as payload_reader:
-                unpadded_payload = payload_reader.read()
+                payload = payload_reader.read()
             # Add the size of our new addition at the end in 4 bytes s.t. len(executable) - 4 - len(payload)
             # would get us the offset to the start of the payload.
-            # Some notes:
-            # * Using big-endian b/c the padding MUST be null bytes, and it's easier to differentiate this way
-            #    * E.g., given payload b'payload', we would append b'payload\x00\x00\x00\x07'. If we pad this, it would
-            #      be b'payload\x00\x00\x00\x07\x00\x00\x00\x00\x00'
-            #    * To get to our arbitrary payload, we read backwards until we reach a character that is not a null
-            #    byte. From there, we can read 4 more bytes to get the length of the payload, then read back the length
-            #    of that payload.
-            # * Maximum size of our payload in bytes is 256**4 - len(digital_cert) - 4, ~4.29GB
-            unpadded_payload_w_size = unpadded_payload + struct.pack('>I', os.path.getsize(payload_location))
-            padded_payload = self.pad_payload(unpadded_payload_w_size, constant.padding_size)
+            # NOTE: Maximum size of our payload in bytes is 256**4 - len(digital_cert) - 4, ~4.29GB
+            payload_w_size = payload + struct.pack('>I', os.path.getsize(payload_location))
 
             new_certificate_table_size = struct.pack('<I', variable.certificate_table_size
-                                                     + len(padded_payload))
+                                                     + len(payload_w_size))
 
             file.seek(variable.PE_header_offset
                       + constant.optional_header_offset
@@ -297,7 +283,7 @@ class ExeAppender:
             file.write(new_certificate_table_size)
 
             file.seek(os.path.getsize(file_location))
-            file.write(padded_payload)
+            file.write(payload_w_size)
 
             file.seek(0)
             checksum = ExeAppender.generate_checksum(file.read(), variable.PE_header_offset
